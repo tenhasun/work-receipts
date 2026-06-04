@@ -9,6 +9,23 @@ import HistoryTable from './HistoryTable';
 import ReceiptTemplate from './ReceiptTemplate';
 import DeleteModal from './DeleteModal';
 
+const getFormattedFilename = (baseDateStr) => {
+  const d = new Date();
+  const datePart = baseDateStr.replace(/-/g, '.');
+  
+  let hours = d.getHours();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const hoursStr = String(hours).padStart(2, '0');
+  
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const seconds = String(d.getSeconds()).padStart(2, '0');
+  
+  const timePart = `${hoursStr}.${minutes}.${seconds}${ampm}`;
+  return `Receipt ${datePart}-${timePart}.pdf`;
+};
+
 export default function SplitCalculator() {
   // State
   const [lineItems, setLineItems] = useState([{ name: '', amount: '' }]);
@@ -112,8 +129,7 @@ export default function SplitCalculator() {
     };
 
     try {
-      const timeStr = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
-      await generatePDF('receipt-template', `receipt_${date}_${timeStr}.pdf`);
+      await generatePDF('receipt-template', getFormattedFilename(date));
 
       if (fileHandle) {
         await appendToCSV(fileHandle, data);
@@ -162,8 +178,7 @@ export default function SplitCalculator() {
         setPdfData(data);
       });
       
-      const timeStr = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
-      await generatePDF('receipt-template', `receipt_${data.date}_${timeStr}.pdf`);
+      await generatePDF('receipt-template', getFormattedFilename(data.date));
       
       flushSync(() => {
         setPdfData(null);
