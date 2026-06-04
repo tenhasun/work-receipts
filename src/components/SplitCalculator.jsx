@@ -112,7 +112,8 @@ export default function SplitCalculator() {
     };
 
     try {
-      await generatePDF('receipt-template', `receipt_${date}.pdf`);
+      const timeStr = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+      await generatePDF('receipt-template', `receipt_${date}_${timeStr}.pdf`);
 
       if (fileHandle) {
         await appendToCSV(fileHandle, data);
@@ -161,7 +162,8 @@ export default function SplitCalculator() {
         setPdfData(data);
       });
       
-      await generatePDF('receipt-template', `receipt_${data.date}.pdf`);
+      const timeStr = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+      await generatePDF('receipt-template', `receipt_${data.date}_${timeStr}.pdf`);
       
       flushSync(() => {
         setPdfData(null);
