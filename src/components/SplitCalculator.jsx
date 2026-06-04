@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSavedFileHandle, selectNewFile, appendToCSV, readCSV } from '../utils/storage';
+import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV } from '../utils/storage';
 import { generatePDF } from '../utils/pdfGenerator';
 import { FileSpreadsheet, Save, History, CheckCircle2 } from 'lucide-react';
 
@@ -41,6 +41,19 @@ export default function SplitCalculator() {
       }
     } catch (e) {
       setStatus('Failed to select file.');
+    }
+  };
+
+  const handleCreateFile = async () => {
+    try {
+      const handle = await createNewFile();
+      if (handle) {
+        setFileHandle(handle);
+        setStatus('New spreadsheet created successfully.');
+        loadHistory(handle);
+      }
+    } catch (e) {
+      setStatus('Failed to create file.');
     }
   };
 
@@ -104,9 +117,16 @@ export default function SplitCalculator() {
             {fileHandle ? `Linked to local spreadsheet: ${fileHandle.name}` : 'No local spreadsheet linked'}
           </span>
         </div>
-        <button className="secondary-btn" onClick={handleSelectFile} type="button">
-          {fileHandle ? 'Change File' : 'Select CSV File'}
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="secondary-btn" onClick={handleSelectFile} type="button">
+            {fileHandle ? 'Change File' : 'Open CSV'}
+          </button>
+          {!fileHandle && (
+            <button className="secondary-btn" onClick={handleCreateFile} type="button">
+              Create New CSV
+            </button>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSaveAndGenerate} className="split-form">

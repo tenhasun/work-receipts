@@ -34,6 +34,34 @@ export async function selectNewFile() {
   }
 }
 
+export async function createNewFile() {
+  try {
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName: 'work_receipts.csv',
+      types: [
+        {
+          description: 'CSV Files',
+          accept: {
+            'text/csv': ['.csv'],
+          },
+        },
+      ],
+    });
+    
+    const writable = await fileHandle.createWritable();
+    await writable.write(''); // Initialize empty
+    await writable.close();
+    
+    await set(FILE_HANDLE_KEY, fileHandle);
+    return fileHandle;
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.error('Error creating file:', err);
+    }
+    return null;
+  }
+}
+
 export async function verifyPermission(fileHandle, readWrite = true) {
   const options = { mode: readWrite ? 'readwrite' : 'read' };
   if ((await fileHandle.queryPermission(options)) === 'granted') {
