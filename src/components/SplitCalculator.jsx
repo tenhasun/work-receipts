@@ -2,29 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV, getCachedHistory, saveFullCSV } from '../utils/storage';
 import { generatePDF } from '../utils/pdfGenerator';
-import { FileSpreadsheet, Save, History, CheckCircle2, Download, PlusCircle, Trash2, AlertTriangle } from 'lucide-react';
 
-const formatReceiptDate = (dateString) => {
-  if (!dateString) return '';
-  // Append T00:00:00 to force local timezone calculation instead of UTC, avoiding off-by-one errors
-  const d = new Date(dateString.includes('T') ? dateString : dateString + 'T00:00:00');
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
-  const dayName = days[d.getDay()];
-  const monthName = months[d.getMonth()];
-  const day = d.getDate();
-  const year = d.getFullYear();
-  
-  let suffix = 'th';
-  if (day % 10 === 1 && day !== 11) suffix = 'st';
-  else if (day % 10 === 2 && day !== 12) suffix = 'nd';
-  else if (day % 10 === 3 && day !== 13) suffix = 'rd';
-  
-  return `${dayName}, ${monthName} ${day}${suffix}, ${year}`;
-};
+import StorageSection from './StorageSection';
+import LineItemsForm from './LineItemsForm';
+import HistoryTable from './HistoryTable';
+import ReceiptTemplate from './ReceiptTemplate';
+import DeleteModal from './DeleteModal';
 
 export default function SplitCalculator() {
+  // State
   const [lineItems, setLineItems] = useState([{ name: '', amount: '' }]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
@@ -33,9 +19,9 @@ export default function SplitCalculator() {
   const [history, setHistory] = useState([]);
   const [status, setStatus] = useState('');
   const [pdfData, setPdfData] = useState(null); 
-  const [itemToDelete, setItemToDelete] = useState(null); // Stores index of item to delete
+  const [itemToDelete, setItemToDelete] = useState(null);
 
-  // Derived calculations for the live form
+  // Derived Calculations
   const parsedAmount = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   const splits = {
     electricity: parsedAmount * 0.05,
@@ -52,15 +38,12 @@ export default function SplitCalculator() {
     lineItems
   };
 
+  // Lifecycle
   useEffect(() => {
     async function loadInitialData() {
-      // 1. Load the file handle if we have one
       const handle = await getSavedFileHandle();
-      if (handle) {
-        setFileHandle(handle);
-      }
+      if (handle) setFileHandle(handle);
       
-      // 2. Automatically load history from cache without needing permission
       const cachedHistory = await getCachedHistory();
       if (cachedHistory && cachedHistory.length > 0) {
         setHistory(cachedHistory.reverse());
@@ -69,6 +52,7 @@ export default function SplitCalculator() {
     loadInitialData();
   }, []);
 
+  // Handlers - Storage
   const handleSelectFile = async () => {
     try {
       const handle = await selectNewFile();
@@ -99,25 +83,14 @@ export default function SplitCalculator() {
     if (!handle) return;
     try {
       const data = await readCSV(handle);
-      setHistory(data.reverse()); // Show newest first
+      setHistory(data.reverse());
     } catch (e) {
       console.error(e);
       setStatus('Could not read history. Please select the file again.');
     }
   };
 
-  const handleAddLineItem = () => setLineItems([...lineItems, { name: '', amount: '' }]);
-  const handleRemoveLineItem = (index) => {
-    if (lineItems.length > 1) {
-      setLineItems(lineItems.filter((_, i) => i !== index));
-    }
-  };
-  const handleLineItemChange = (index, field, value) => {
-    const newItems = [...lineItems];
-    newItems[index][field] = value;
-    setLineItems(newItems);
-  };
-
+  // Handlers - Form & PDF Generation
   const handleSaveAndGenerate = async (e) => {
     e.preventDefault();
     if (parsedAmount <= 0) {
@@ -139,7 +112,6 @@ export default function SplitCalculator() {
     };
 
     try {
-      // Generate the PDF from the hidden receipt element
       await generatePDF('receipt-template', `receipt_${date}.pdf`);
 
       if (fileHandle) {
@@ -150,7 +122,6 @@ export default function SplitCalculator() {
         setStatus('PDF generated. (No spreadsheet selected to save to).');
       }
 
-      // Reset form
       setLineItems([{ name: '', amount: '' }]);
       setNote('');
     } catch (e) {
@@ -169,7 +140,6 @@ export default function SplitCalculator() {
         parsedItems.push({ name: match[1].trim(), amount: parseFloat(match[2]) });
       }
 
-      // Fallback if no specific line items format was found (for older records)
       if (parsedItems.length === 0) {
         parsedItems.push({ name: 'Payment', amount: parseFloat(row['Total Amount']) });
       }
@@ -180,7 +150,7 @@ export default function SplitCalculator() {
         note: row.Note || '',
         lineItems: parsedItems,
         splits: {
-          electricity: parseFloat(row.Electricity),
+          electricity: parseFloat(row.Electricity || row.Utilities),
           laurence: parseFloat(row.Laurence),
           taxes: parseFloat(row.Taxes),
           sylviaLillian: parseFloat(row['Sylvia & Lillian']),
@@ -202,13 +172,12 @@ export default function SplitCalculator() {
     }
   };
 
-  const handleDeleteClick = (index) => {
-    setItemToDelete(index);
-  };
-
+  // Handlers - Deletion
+  const handleDeleteClick = (index) => setItemToDelete(index);
+  const cancelDelete = () => setItemToDelete(null);
+  
   const confirmDelete = async () => {
     if (itemToDelete === null) return;
-    
     try {
       const newHistory = history.filter((_, i) => i !== itemToDelete);
       const csvData = [...newHistory].reverse();
@@ -225,10 +194,6 @@ export default function SplitCalculator() {
     }
   };
 
-  const cancelDelete = () => {
-    setItemToDelete(null);
-  };
-
   return (
     <div className="calculator-container">
       <div className="header">
@@ -236,267 +201,41 @@ export default function SplitCalculator() {
         <p>A minimalist tool for splitting payments</p>
       </div>
 
-      <div className="storage-section">
-        <div className="file-status">
-          <FileSpreadsheet size={20} />
-          <span>
-            {fileHandle ? (
-              <>Linked to local spreadsheet: <strong>{fileHandle.name}</strong></>
-            ) : (
-              'No local spreadsheet linked'
-            )}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          {fileHandle && history.length === 0 && (
-            <button className="secondary-btn" onClick={() => loadHistory(fileHandle)} type="button">
-              Load Previous Records
-            </button>
-          )}
-          <button className="secondary-btn" onClick={handleSelectFile} type="button">
-            {fileHandle ? 'Change File' : 'Open CSV'}
-          </button>
-          {!fileHandle && (
-            <button className="secondary-btn" onClick={handleCreateFile} type="button">
-              Create New CSV
-            </button>
-          )}
-        </div>
-      </div>
+      <StorageSection 
+        fileHandle={fileHandle}
+        historyLength={history.length}
+        loadHistory={loadHistory}
+        handleSelectFile={handleSelectFile}
+        handleCreateFile={handleCreateFile}
+      />
 
-      <form onSubmit={handleSaveAndGenerate} className="split-form">
-        <div className="line-items-section">
-          <div className="line-items-header">
-            <h3>Line Items</h3>
-          </div>
-          {lineItems.map((item, index) => (
-            <div key={index} className="line-item-row">
-              <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
-                <input
-                  type="text"
-                  value={item.name}
-                  onChange={(e) => handleLineItemChange(index, 'name', e.target.value)}
-                  placeholder="Item Name (e.g., Logo Design)"
-                  required
-                />
-              </div>
-              <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={item.amount}
-                  onChange={(e) => handleLineItemChange(index, 'amount', e.target.value)}
-                  placeholder="Amount ($)"
-                  required
-                />
-              </div>
-              {lineItems.length > 1 && (
-                <button 
-                  type="button" 
-                  className="icon-btn text-danger" 
-                  onClick={() => handleRemoveLineItem(index)}
-                  title="Remove Item"
-                >
-                  <Trash2 size={18} />
-                </button>
-              )}
-            </div>
-          ))}
-          <button type="button" className="text-btn add-item-btn" onClick={handleAddLineItem}>
-            <PlusCircle size={16} /> Add Another Item
-          </button>
-        </div>
+      <LineItemsForm 
+        lineItems={lineItems}
+        setLineItems={setLineItems}
+        date={date}
+        setDate={setDate}
+        note={note}
+        setNote={setNote}
+        parsedAmount={parsedAmount}
+        splits={splits}
+        handleSaveAndGenerate={handleSaveAndGenerate}
+        status={status}
+      />
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="date">Date</label>
-            <input
-              type="date"
-              id="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="note">Note (Optional)</label>
-            <input
-              type="text"
-              id="note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Client X payment"
-            />
-          </div>
-        </div>
+      <HistoryTable 
+        history={history}
+        loadHistory={loadHistory}
+        handleGenerateHistoryPDF={handleGenerateHistoryPDF}
+        handleDeleteClick={handleDeleteClick}
+      />
 
-        <div className="breakdown">
-          <div className="breakdown-header">
-            <h3>Breakdown</h3>
-            <span className="total-badge">Total: ${parsedAmount.toFixed(2)}</span>
-          </div>
-          <div className="breakdown-grid">
-            <div className="breakdown-item">
-              <span className="label">Taxes (15%)</span>
-              <span className="value">${splits.taxes.toFixed(2)}</span>
-            </div>
-            <div className="breakdown-item">
-              <span className="label">Utilities (Electricity & Wifi) (5%)</span>
-              <span className="value">${splits.electricity.toFixed(2)}</span>
-            </div>
-            <div className="breakdown-item">
-              <span className="label">Laurence (15%)</span>
-              <span className="value">${splits.laurence.toFixed(2)}</span>
-            </div>
-            <div className="breakdown-item highlight">
-              <span className="label">Sylvia & Lillian (65%)</span>
-              <span className="value">${splits.sylviaLillian.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
+      <ReceiptTemplate activeData={activeData} />
 
-        <button type="submit" className="primary-btn">
-          <Save size={18} />
-          Save & Generate PDF
-        </button>
-        {status && <div className="status-message">{status}</div>}
-      </form>
-
-      {history.length > 0 && (
-        <div className="history-section">
-          <div className="history-header">
-            <h3><History size={18} /> Recent History</h3>
-            <button className="text-btn" onClick={() => loadHistory()} type="button">Refresh</button>
-          </div>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Tax</th>
-                  <th>Util.</th>
-                  <th>Lrn.</th>
-                  <th>S&L</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.slice(0, 5).map((row, i) => (
-                  <tr key={i}>
-                    <td>{row.Date}</td>
-                    <td className="note-cell" style={{ maxWidth: '150px' }}>{row['Line Items'] || '-'}</td>
-                    <td><b>${row['Total Amount']}</b></td>
-                    <td>${row.Taxes}</td>
-                    <td>${row.Electricity}</td>
-                    <td>${row.Laurence}</td>
-                    <td>${row['Sylvia & Lillian']}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button 
-                          type="button" 
-                          className="icon-btn" 
-                          onClick={() => handleGenerateHistoryPDF(row)}
-                          title="Download Receipt"
-                        >
-                          <Download size={16} />
-                        </button>
-                        <button 
-                          type="button" 
-                          className="icon-btn text-danger" 
-                          onClick={() => handleDeleteClick(i)}
-                          title="Delete Record"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Hidden Receipt Template for PDF Generation */}
-      <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-        <div id="receipt-template" className="receipt-template">
-          <div className="receipt-header">
-            <CheckCircle2 size={32} color="#000" />
-            <h2>Payment Receipt</h2>
-            <p className="receipt-date">{formatReceiptDate(activeData.date)}</p>
-          </div>
-          
-          <div className="receipt-amount-box">
-            <span>Total Received</span>
-            <div className="receipt-big-amount">${activeData.totalAmount.toFixed(2)}</div>
-            {activeData.note && <div className="receipt-note">"{activeData.note}"</div>}
-          </div>
-
-          {activeData.lineItems && activeData.lineItems.length > 0 && (
-            <div className="receipt-line-items">
-              <div className="receipt-section-title">Itemized Services</div>
-              {activeData.lineItems.filter(item => item.name).map((item, idx) => (
-                <div className="receipt-item-row" key={idx}>
-                  <span className="receipt-item-name">{item.name}</span>
-                  <span className="receipt-item-amount">${(parseFloat(item.amount) || 0).toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="receipt-breakdown">
-            <div className="receipt-section-title">Internal Breakdown</div>
-            <div className="receipt-row">
-              <span className="receipt-label">Taxes (15%)</span>
-              <span className="receipt-value">${activeData.splits.taxes.toFixed(2)}</span>
-            </div>
-            <div className="receipt-row">
-              <span className="receipt-label">Utilities (Electricity & Wifi) (5%)</span>
-              <span className="receipt-value">${activeData.splits.electricity.toFixed(2)}</span>
-            </div>
-            <div className="receipt-row">
-              <span className="receipt-label">Laurence (15%)</span>
-              <span className="receipt-value">${activeData.splits.laurence.toFixed(2)}</span>
-            </div>
-            <div className="receipt-row receipt-highlight">
-              <span className="receipt-label">Sylvia & Lillian (65%)</span>
-              <span className="receipt-value">${activeData.splits.sylviaLillian.toFixed(2)}</span>
-            </div>
-          </div>
-          
-          <div className="receipt-footer">
-            Generated by Payment Splitter
-          </div>
-        </div>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {itemToDelete !== null && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-icon-container">
-              <AlertTriangle size={32} className="modal-warning-icon" />
-            </div>
-            <h3>Delete Receipt?</h3>
-            <p>
-              Are you sure you want to permanently delete this receipt from your spreadsheet?
-              This action cannot be undone.
-            </p>
-            <div className="modal-actions">
-              <button className="secondary-btn" onClick={cancelDelete}>
-                Cancel
-              </button>
-              <button className="danger-btn" onClick={confirmDelete}>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteModal 
+        itemToDelete={itemToDelete}
+        cancelDelete={cancelDelete}
+        confirmDelete={confirmDelete}
+      />
     </div>
   );
 }
