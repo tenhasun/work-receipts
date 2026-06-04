@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV, getCachedHistory, saveFullCSV } from '../utils/storage';
 import { generatePDF } from '../utils/pdfGenerator';
-import { FileSpreadsheet, Save, History, CheckCircle2, Download, PlusCircle, Trash2 } from 'lucide-react';
+import { FileSpreadsheet, Save, History, CheckCircle2, Download, PlusCircle, Trash2, AlertTriangle } from 'lucide-react';
 
 export default function SplitCalculator() {
   const [lineItems, setLineItems] = useState([{ name: '', amount: '' }]);
@@ -12,7 +12,8 @@ export default function SplitCalculator() {
   const [fileHandle, setFileHandle] = useState(null);
   const [history, setHistory] = useState([]);
   const [status, setStatus] = useState('');
-  const [pdfData, setPdfData] = useState(null); // Used for rendering historical receipts
+  const [pdfData, setPdfData] = useState(null); 
+  const [itemToDelete, setItemToDelete] = useState(null); // Stores index of item to delete
 
   // Derived calculations for the live form
   const parsedAmount = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -181,11 +182,15 @@ export default function SplitCalculator() {
     }
   };
 
-  const handleDeleteHistoryEntry = async (indexToDelete) => {
-    if (!window.confirm('Are you sure you want to delete this record?')) return;
+  const handleDeleteClick = (index) => {
+    setItemToDelete(index);
+  };
+
+  const confirmDelete = async () => {
+    if (itemToDelete === null) return;
     
     try {
-      const newHistory = history.filter((_, i) => i !== indexToDelete);
+      const newHistory = history.filter((_, i) => i !== itemToDelete);
       const csvData = [...newHistory].reverse();
       
       await saveFullCSV(fileHandle, csvData);
@@ -195,7 +200,13 @@ export default function SplitCalculator() {
     } catch (e) {
       console.error(e);
       setStatus(e.message || 'Error deleting record.');
+    } finally {
+      setItemToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setItemToDelete(null);
   };
 
   return (
@@ -371,7 +382,7 @@ export default function SplitCalculator() {
                         <button 
                           type="button" 
                           className="icon-btn text-danger" 
-                          onClick={() => handleDeleteHistoryEntry(i)}
+                          onClick={() => handleDeleteClick(i)}
                           title="Delete Record"
                         >
                           <Trash2 size={16} />
@@ -438,6 +449,30 @@ export default function SplitCalculator() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {itemToDelete !== null && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-icon-container">
+              <AlertTriangle size={32} className="modal-warning-icon" />
+            </div>
+            <h3>Delete Receipt?</h3>
+            <p>
+              Are you sure you want to permanently delete this receipt from your spreadsheet?
+              This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button className="secondary-btn" onClick={cancelDelete}>
+                Cancel
+              </button>
+              <button className="danger-btn" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
