@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
-import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV } from '../utils/storage';
+import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV, getCachedHistory } from '../utils/storage';
 import { generatePDF } from '../utils/pdfGenerator';
 import { FileSpreadsheet, Save, History, CheckCircle2, Download } from 'lucide-react';
 
@@ -31,22 +31,20 @@ export default function SplitCalculator() {
   };
 
   useEffect(() => {
-    async function loadHandle() {
+    async function loadInitialData() {
+      // 1. Load the file handle if we have one
       const handle = await getSavedFileHandle();
       if (handle) {
         setFileHandle(handle);
-        // Try to load silently if permission is already granted
-        if ((await handle.queryPermission({ mode: 'read' })) === 'granted') {
-          try {
-            const data = await readCSV(handle);
-            setHistory(data.reverse());
-          } catch (e) {
-            console.error('Silent load failed', e);
-          }
-        }
+      }
+      
+      // 2. Automatically load history from cache without needing permission
+      const cachedHistory = await getCachedHistory();
+      if (cachedHistory && cachedHistory.length > 0) {
+        setHistory(cachedHistory.reverse());
       }
     }
-    loadHandle();
+    loadInitialData();
   }, []);
 
   const handleSelectFile = async () => {
@@ -165,11 +163,6 @@ export default function SplitCalculator() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          {fileHandle && history.length === 0 && (
-            <button className="secondary-btn" onClick={() => loadHistory(fileHandle)} type="button">
-              Load Previous Records
-            </button>
-          )}
           <button className="secondary-btn" onClick={handleSelectFile} type="button">
             {fileHandle ? 'Change File' : 'Open CSV'}
           </button>

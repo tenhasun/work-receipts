@@ -2,6 +2,16 @@ import { get, set } from 'idb-keyval';
 import Papa from 'papaparse';
 
 const FILE_HANDLE_KEY = 'spreadsheet_file_handle';
+const HISTORY_CACHE_KEY = 'spreadsheet_history_cache';
+
+export async function getCachedHistory() {
+  try {
+    return (await get(HISTORY_CACHE_KEY)) || [];
+  } catch (err) {
+    console.error('Error getting cached history:', err);
+    return [];
+  }
+}
 
 export async function getSavedFileHandle() {
   try {
@@ -103,6 +113,9 @@ export async function appendToCSV(fileHandle, rowData) {
   const writable = await fileHandle.createWritable();
   await writable.write(newCsv);
   await writable.close();
+  
+  // Cache the updated history so it loads instantly next time
+  await set(HISTORY_CACHE_KEY, data);
 }
 
 export async function readCSV(fileHandle) {
@@ -112,5 +125,9 @@ export async function readCSV(fileHandle) {
   }
   const file = await fileHandle.getFile();
   const text = await file.text();
-  return Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+  const data = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+  
+  // Cache the history so it loads instantly next time
+  await set(HISTORY_CACHE_KEY, data);
+  return data;
 }
