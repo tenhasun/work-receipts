@@ -35,6 +35,15 @@ export default function SplitCalculator() {
       const handle = await getSavedFileHandle();
       if (handle) {
         setFileHandle(handle);
+        // Try to load silently if permission is already granted
+        if ((await handle.queryPermission({ mode: 'read' })) === 'granted') {
+          try {
+            const data = await readCSV(handle);
+            setHistory(data.reverse());
+          } catch (e) {
+            console.error('Silent load failed', e);
+          }
+        }
       }
     }
     loadHandle();
@@ -156,6 +165,11 @@ export default function SplitCalculator() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
+          {fileHandle && history.length === 0 && (
+            <button className="secondary-btn" onClick={() => loadHistory(fileHandle)} type="button">
+              Load Previous Records
+            </button>
+          )}
           <button className="secondary-btn" onClick={handleSelectFile} type="button">
             {fileHandle ? 'Change File' : 'Open CSV'}
           </button>
