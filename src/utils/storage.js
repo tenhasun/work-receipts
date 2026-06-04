@@ -132,3 +132,18 @@ export async function readCSV(fileHandle) {
   await set(HISTORY_CACHE_KEY, data);
   return data;
 }
+
+export async function saveFullCSV(fileHandle, data) {
+  if (fileHandle) {
+    const hasPermission = await verifyPermission(fileHandle, true);
+    if (!hasPermission) {
+      throw new Error('Permission denied to write to file.');
+    }
+    const newCsv = Papa.unparse(data, { header: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(newCsv);
+    await writable.close();
+  }
+  
+  await set(HISTORY_CACHE_KEY, data);
+}

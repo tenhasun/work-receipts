@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
-import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV, getCachedHistory } from '../utils/storage';
+import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV, getCachedHistory, saveFullCSV } from '../utils/storage';
 import { generatePDF } from '../utils/pdfGenerator';
 import { FileSpreadsheet, Save, History, CheckCircle2, Download, PlusCircle, Trash2 } from 'lucide-react';
 
@@ -181,6 +181,23 @@ export default function SplitCalculator() {
     }
   };
 
+  const handleDeleteHistoryEntry = async (indexToDelete) => {
+    if (!window.confirm('Are you sure you want to delete this record?')) return;
+    
+    try {
+      const newHistory = history.filter((_, i) => i !== indexToDelete);
+      const csvData = [...newHistory].reverse();
+      
+      await saveFullCSV(fileHandle, csvData);
+      
+      setHistory(newHistory);
+      setStatus('Record deleted successfully.');
+    } catch (e) {
+      console.error(e);
+      setStatus(e.message || 'Error deleting record.');
+    }
+  };
+
   return (
     <div className="calculator-container">
       <div className="header">
@@ -342,14 +359,24 @@ export default function SplitCalculator() {
                     <td>${row.Taxes}</td>
                     <td>${row['Sylvia & Lillian']}</td>
                     <td>
-                      <button 
-                        type="button" 
-                        className="text-btn" 
-                        onClick={() => handleGenerateHistoryPDF(row)}
-                        title="Download Receipt"
-                      >
-                        <Download size={16} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <button 
+                          type="button" 
+                          className="icon-btn" 
+                          onClick={() => handleGenerateHistoryPDF(row)}
+                          title="Download Receipt"
+                        >
+                          <Download size={16} />
+                        </button>
+                        <button 
+                          type="button" 
+                          className="icon-btn text-danger" 
+                          onClick={() => handleDeleteHistoryEntry(i)}
+                          title="Delete Record"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
