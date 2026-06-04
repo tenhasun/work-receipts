@@ -220,7 +220,11 @@ export default function SplitCalculator() {
         <div className="file-status">
           <FileSpreadsheet size={20} />
           <span>
-            {fileHandle ? `Linked to local spreadsheet: ${fileHandle.name}` : 'No local spreadsheet linked'}
+            {fileHandle ? (
+              <>Linked to local spreadsheet: <strong>{fileHandle.name}</strong></>
+            ) : (
+              'No local spreadsheet linked'
+            )}
           </span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
