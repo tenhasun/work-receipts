@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV } from '../utils/storage';
 import { generatePDF } from '../utils/pdfGenerator';
-import { FileSpreadsheet, Save, History, CheckCircle2 } from 'lucide-react';
+import { FileSpreadsheet, Save, History, CheckCircle2, Download } from 'lucide-react';
 
 export default function SplitCalculator() {
   const [totalAmount, setTotalAmount] = useState('');
@@ -11,14 +12,22 @@ export default function SplitCalculator() {
   const [fileHandle, setFileHandle] = useState(null);
   const [history, setHistory] = useState([]);
   const [status, setStatus] = useState('');
+  const [pdfData, setPdfData] = useState(null); // Used for rendering historical receipts
 
-  // Derived calculations
+  // Derived calculations for the live form
   const parsedAmount = parseFloat(totalAmount) || 0;
   const splits = {
     electricity: parsedAmount * 0.05,
     laurence: parsedAmount * 0.15,
     taxes: parsedAmount * 0.15,
     sylviaLillian: parsedAmount * 0.65,
+  };
+
+  const activeData = pdfData || {
+    totalAmount: parsedAmount,
+    date,
+    note,
+    splits
   };
 
   useEffect(() => {
@@ -100,6 +109,35 @@ export default function SplitCalculator() {
     } catch (e) {
       console.error(e);
       setStatus(e.message || 'Error saving to spreadsheet.');
+    }
+  };
+
+  const handleGenerateHistoryPDF = async (row) => {
+    try {
+      const data = {
+        totalAmount: parseFloat(row['Total Amount']),
+        date: row.Date,
+        note: row.Note || '',
+        splits: {
+          electricity: parseFloat(row.Electricity),
+          laurence: parseFloat(row.Laurence),
+          taxes: parseFloat(row.Taxes),
+          sylviaLillian: parseFloat(row['Sylvia & Lillian']),
+        }
+      };
+
+      flushSync(() => {
+        setPdfData(data);
+      });
+      
+      await generatePDF('receipt-template', `receipt_${data.date}.pdf`);
+      
+      flushSync(() => {
+        setPdfData(null);
+      });
+    } catch (e) {
+      console.error('Error generating history PDF', e);
+      setStatus('Failed to generate PDF from history.');
     }
   };
 
@@ -214,6 +252,7 @@ export default function SplitCalculator() {
                   <th>Taxes</th>
                   <th>S & L</th>
                   <th>Note</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,6 +265,16 @@ export default function SplitCalculator() {
                     <td>${row.Taxes}</td>
                     <td>${row['Sylvia & Lillian']}</td>
                     <td className="note-cell">{row.Note}</td>
+                    <td>
+                      <button 
+                        type="button" 
+                        className="text-btn" 
+                        onClick={() => handleGenerateHistoryPDF(row)}
+                        title="Download Receipt"
+                      >
+                        <Download size={16} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -240,31 +289,31 @@ export default function SplitCalculator() {
           <div className="receipt-header">
             <CheckCircle2 size={32} color="#000" />
             <h2>Payment Receipt</h2>
-            <p className="receipt-date">{date}</p>
+            <p className="receipt-date">{activeData.date}</p>
           </div>
           
           <div className="receipt-amount-box">
             <span>Total Received</span>
-            <div className="receipt-big-amount">${parsedAmount.toFixed(2)}</div>
-            {note && <div className="receipt-note">"{note}"</div>}
+            <div className="receipt-big-amount">${activeData.totalAmount.toFixed(2)}</div>
+            {activeData.note && <div className="receipt-note">"{activeData.note}"</div>}
           </div>
 
           <div className="receipt-breakdown">
             <div className="receipt-row">
               <span className="receipt-label">Electricity Fund (5%)</span>
-              <span className="receipt-value">${splits.electricity.toFixed(2)}</span>
+              <span className="receipt-value">${activeData.splits.electricity.toFixed(2)}</span>
             </div>
             <div className="receipt-row">
               <span className="receipt-label">Laurence (15%)</span>
-              <span className="receipt-value">${splits.laurence.toFixed(2)}</span>
+              <span className="receipt-value">${activeData.splits.laurence.toFixed(2)}</span>
             </div>
             <div className="receipt-row">
               <span className="receipt-label">Taxes (15%)</span>
-              <span className="receipt-value">${splits.taxes.toFixed(2)}</span>
+              <span className="receipt-value">${activeData.splits.taxes.toFixed(2)}</span>
             </div>
             <div className="receipt-row receipt-highlight">
               <span className="receipt-label">Sylvia & Lillian (65%)</span>
-              <span className="receipt-value">${splits.sylviaLillian.toFixed(2)}</span>
+              <span className="receipt-value">${activeData.splits.sylviaLillian.toFixed(2)}</span>
             </div>
           </div>
           
