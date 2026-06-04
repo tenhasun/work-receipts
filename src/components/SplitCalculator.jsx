@@ -163,6 +163,11 @@ export default function SplitCalculator() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
+          {fileHandle && history.length === 0 && (
+            <button className="secondary-btn" onClick={() => loadHistory(fileHandle)} type="button">
+              Load Previous Records
+            </button>
+          )}
           <button className="secondary-btn" onClick={handleSelectFile} type="button">
             {fileHandle ? 'Change File' : 'Open CSV'}
           </button>
