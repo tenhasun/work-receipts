@@ -4,6 +4,25 @@ import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV,
 import { generatePDF } from '../utils/pdfGenerator';
 import { FileSpreadsheet, Save, History, CheckCircle2, Download, PlusCircle, Trash2, AlertTriangle } from 'lucide-react';
 
+const formatReceiptDate = (dateString) => {
+  if (!dateString) return '';
+  // Append T00:00:00 to force local timezone calculation instead of UTC, avoiding off-by-one errors
+  const d = new Date(dateString.includes('T') ? dateString : dateString + 'T00:00:00');
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  const dayName = days[d.getDay()];
+  const monthName = months[d.getMonth()];
+  const day = d.getDate();
+  
+  let suffix = 'th';
+  if (day % 10 === 1 && day !== 11) suffix = 'st';
+  else if (day % 10 === 2 && day !== 12) suffix = 'nd';
+  else if (day % 10 === 3 && day !== 13) suffix = 'rd';
+  
+  return `${dayName}, ${monthName} ${day}${suffix}`;
+};
+
 export default function SplitCalculator() {
   const [lineItems, setLineItems] = useState([{ name: '', amount: '' }]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -407,7 +426,7 @@ export default function SplitCalculator() {
           <div className="receipt-header">
             <CheckCircle2 size={32} color="#000" />
             <h2>Payment Receipt</h2>
-            <p className="receipt-date">{activeData.date}</p>
+            <p className="receipt-date">{formatReceiptDate(activeData.date)}</p>
           </div>
           
           <div className="receipt-amount-box">
