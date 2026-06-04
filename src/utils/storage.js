@@ -100,6 +100,7 @@ export async function appendToCSV(fileHandle, rowData) {
     Date: rowData.date,
     Note: rowData.note,
     'Total Amount': rowData.totalAmount.toFixed(2),
+    'Line Items': rowData.lineItemsStr || '',
     Electricity: rowData.splits.electricity.toFixed(2),
     Laurence: rowData.splits.laurence.toFixed(2),
     Taxes: rowData.splits.taxes.toFixed(2),

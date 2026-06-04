@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { getSavedFileHandle, selectNewFile, createNewFile, appendToCSV, readCSV, getCachedHistory } from '../utils/storage';
 import { generatePDF } from '../utils/pdfGenerator';
-import { FileSpreadsheet, Save, History, CheckCircle2, Download } from 'lucide-react';
+import { FileSpreadsheet, Save, History, CheckCircle2, Download, PlusCircle, Trash2 } from 'lucide-react';
 
 export default function SplitCalculator() {
-  const [totalAmount, setTotalAmount] = useState('');
+  const [lineItems, setLineItems] = useState([{ name: '', amount: '' }]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   
@@ -15,7 +15,7 @@ export default function SplitCalculator() {
   const [pdfData, setPdfData] = useState(null); // Used for rendering historical receipts
 
   // Derived calculations for the live form
-  const parsedAmount = parseFloat(totalAmount) || 0;
+  const parsedAmount = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   const splits = {
     electricity: parsedAmount * 0.05,
     laurence: parsedAmount * 0.15,
@@ -27,7 +27,8 @@ export default function SplitCalculator() {
     totalAmount: parsedAmount,
     date,
     note,
-    splits
+    splits,
+    lineItems
   };
 
   useEffect(() => {
@@ -84,15 +85,33 @@ export default function SplitCalculator() {
     }
   };
 
+  const handleAddLineItem = () => setLineItems([...lineItems, { name: '', amount: '' }]);
+  const handleRemoveLineItem = (index) => {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter((_, i) => i !== index));
+    }
+  };
+  const handleLineItemChange = (index, field, value) => {
+    const newItems = [...lineItems];
+    newItems[index][field] = value;
+    setLineItems(newItems);
+  };
+
   const handleSaveAndGenerate = async (e) => {
     e.preventDefault();
     if (parsedAmount <= 0) {
-      setStatus('Please enter a valid amount.');
+      setStatus('Please enter valid line items.');
       return;
     }
 
+    const validLineItems = lineItems.filter(item => item.name && item.amount);
+    const lineItemsStr = validLineItems
+      .map(item => `${item.name} ($${parseFloat(item.amount).toFixed(2)})`)
+      .join(', ');
+
     const data = {
       totalAmount: parsedAmount,
+      lineItemsStr,
       date,
       note,
       splits,
@@ -111,7 +130,7 @@ export default function SplitCalculator() {
       }
 
       // Reset form
-      setTotalAmount('');
+      setLineItems([{ name: '', amount: '' }]);
       setNote('');
     } catch (e) {
       console.error(e);
@@ -121,10 +140,24 @@ export default function SplitCalculator() {
 
   const handleGenerateHistoryPDF = async (row) => {
     try {
+      const lineItemsStr = row['Line Items'] || '';
+      const parsedItems = [];
+      const regex = /([^,]+)\s+\(\$([\d.]+)\)/g;
+      let match;
+      while ((match = regex.exec(lineItemsStr)) !== null) {
+        parsedItems.push({ name: match[1].trim(), amount: parseFloat(match[2]) });
+      }
+
+      // Fallback if no specific line items format was found (for older records)
+      if (parsedItems.length === 0) {
+        parsedItems.push({ name: 'Payment', amount: parseFloat(row['Total Amount']) });
+      }
+
       const data = {
         totalAmount: parseFloat(row['Total Amount']),
         date: row.Date,
         note: row.Note || '',
+        lineItems: parsedItems,
         splits: {
           electricity: parseFloat(row.Electricity),
           laurence: parseFloat(row.Laurence),
@@ -180,19 +213,47 @@ export default function SplitCalculator() {
       </div>
 
       <form onSubmit={handleSaveAndGenerate} className="split-form">
-        <div className="form-group">
-          <label htmlFor="totalAmount">Total Amount ($)</label>
-          <input
-            type="number"
-            id="totalAmount"
-            step="0.01"
-            min="0"
-            value={totalAmount}
-            onChange={(e) => setTotalAmount(e.target.value)}
-            placeholder="0.00"
-            required
-            className="amount-input"
-          />
+        <div className="line-items-section">
+          <div className="line-items-header">
+            <h3>Line Items</h3>
+          </div>
+          {lineItems.map((item, index) => (
+            <div key={index} className="line-item-row">
+              <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
+                <input
+                  type="text"
+                  value={item.name}
+                  onChange={(e) => handleLineItemChange(index, 'name', e.target.value)}
+                  placeholder="Item Name (e.g., Logo Design)"
+                  required
+                />
+              </div>
+              <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={item.amount}
+                  onChange={(e) => handleLineItemChange(index, 'amount', e.target.value)}
+                  placeholder="Amount ($)"
+                  required
+                />
+              </div>
+              {lineItems.length > 1 && (
+                <button 
+                  type="button" 
+                  className="icon-btn text-danger" 
+                  onClick={() => handleRemoveLineItem(index)}
+                  title="Remove Item"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
+            </div>
+          ))}
+          <button type="button" className="text-btn add-item-btn" onClick={handleAddLineItem}>
+            <PlusCircle size={16} /> Add Another Item
+          </button>
         </div>
 
         <div className="form-row">
@@ -219,7 +280,10 @@ export default function SplitCalculator() {
         </div>
 
         <div className="breakdown">
-          <h3>Breakdown</h3>
+          <div className="breakdown-header">
+            <h3>Breakdown</h3>
+            <span className="total-badge">Total: ${parsedAmount.toFixed(2)}</span>
+          </div>
           <div className="breakdown-grid">
             <div className="breakdown-item">
               <span className="label">Electricity (5%)</span>
@@ -258,12 +322,12 @@ export default function SplitCalculator() {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Amount</th>
-                  <th>Electricity</th>
-                  <th>Laurence</th>
-                  <th>Taxes</th>
-                  <th>S & L</th>
-                  <th>Note</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Elec.</th>
+                  <th>Lrn.</th>
+                  <th>Tax</th>
+                  <th>S&L</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -271,12 +335,12 @@ export default function SplitCalculator() {
                 {history.slice(0, 5).map((row, i) => (
                   <tr key={i}>
                     <td>{row.Date}</td>
-                    <td>${row['Total Amount']}</td>
+                    <td className="note-cell" style={{ maxWidth: '150px' }}>{row['Line Items'] || '-'}</td>
+                    <td><b>${row['Total Amount']}</b></td>
                     <td>${row.Electricity}</td>
                     <td>${row.Laurence}</td>
                     <td>${row.Taxes}</td>
                     <td>${row['Sylvia & Lillian']}</td>
-                    <td className="note-cell">{row.Note}</td>
                     <td>
                       <button 
                         type="button" 
@@ -310,7 +374,20 @@ export default function SplitCalculator() {
             {activeData.note && <div className="receipt-note">"{activeData.note}"</div>}
           </div>
 
+          {activeData.lineItems && activeData.lineItems.length > 0 && (
+            <div className="receipt-line-items">
+              <div className="receipt-section-title">Itemized Services</div>
+              {activeData.lineItems.filter(item => item.name).map((item, idx) => (
+                <div className="receipt-item-row" key={idx}>
+                  <span className="receipt-item-name">{item.name}</span>
+                  <span className="receipt-item-amount">${(parseFloat(item.amount) || 0).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="receipt-breakdown">
+            <div className="receipt-section-title">Internal Breakdown</div>
             <div className="receipt-row">
               <span className="receipt-label">Electricity Fund (5%)</span>
               <span className="receipt-value">${activeData.splits.electricity.toFixed(2)}</span>
