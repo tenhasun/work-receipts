@@ -314,16 +314,16 @@ export default function SplitCalculator() {
           </div>
           <div className="breakdown-grid">
             <div className="breakdown-item">
-              <span className="label">Electricity (5%)</span>
+              <span className="label">Taxes (15%)</span>
+              <span className="value">${splits.taxes.toFixed(2)}</span>
+            </div>
+            <div className="breakdown-item">
+              <span className="label">Utilities (Electricity & Wifi) (5%)</span>
               <span className="value">${splits.electricity.toFixed(2)}</span>
             </div>
             <div className="breakdown-item">
               <span className="label">Laurence (15%)</span>
               <span className="value">${splits.laurence.toFixed(2)}</span>
-            </div>
-            <div className="breakdown-item">
-              <span className="label">Taxes (15%)</span>
-              <span className="value">${splits.taxes.toFixed(2)}</span>
             </div>
             <div className="breakdown-item highlight">
               <span className="label">Sylvia & Lillian (65%)</span>
@@ -352,9 +352,9 @@ export default function SplitCalculator() {
                   <th>Date</th>
                   <th>Items</th>
                   <th>Total</th>
-                  <th>Elec.</th>
-                  <th>Lrn.</th>
                   <th>Tax</th>
+                  <th>Util.</th>
+                  <th>Lrn.</th>
                   <th>S&L</th>
                   <th>Action</th>
                 </tr>
@@ -365,9 +365,9 @@ export default function SplitCalculator() {
                     <td>{row.Date}</td>
                     <td className="note-cell" style={{ maxWidth: '150px' }}>{row['Line Items'] || '-'}</td>
                     <td><b>${row['Total Amount']}</b></td>
+                    <td>${row.Taxes}</td>
                     <td>${row.Electricity}</td>
                     <td>${row.Laurence}</td>
-                    <td>${row.Taxes}</td>
                     <td>${row['Sylvia & Lillian']}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '5px' }}>
@@ -427,16 +427,16 @@ export default function SplitCalculator() {
           <div className="receipt-breakdown">
             <div className="receipt-section-title">Internal Breakdown</div>
             <div className="receipt-row">
-              <span className="receipt-label">Electricity Fund (5%)</span>
+              <span className="receipt-label">Taxes (15%)</span>
+              <span className="receipt-value">${activeData.splits.taxes.toFixed(2)}</span>
+            </div>
+            <div className="receipt-row">
+              <span className="receipt-label">Utilities (Electricity & Wifi) (5%)</span>
               <span className="receipt-value">${activeData.splits.electricity.toFixed(2)}</span>
             </div>
             <div className="receipt-row">
               <span className="receipt-label">Laurence (15%)</span>
               <span className="receipt-value">${activeData.splits.laurence.toFixed(2)}</span>
-            </div>
-            <div className="receipt-row">
-              <span className="receipt-label">Taxes (15%)</span>
-              <span className="receipt-value">${activeData.splits.taxes.toFixed(2)}</span>
             </div>
             <div className="receipt-row receipt-highlight">
               <span className="receipt-label">Sylvia & Lillian (65%)</span>
