@@ -100,18 +100,15 @@ export default function LineItemsForm({
         </div>
       </div>
 
-      <div className="form-group checkbox-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+      <label className="checkbox-group" htmlFor="splitSylviaLillian">
         <input 
           type="checkbox" 
           id="splitSylviaLillian" 
           checked={splitSylviaLillian}
           onChange={(e) => setSplitSylviaLillian(e.target.checked)}
-          style={{ width: 'auto', marginBottom: 0 }}
         />
-        <label htmlFor="splitSylviaLillian" style={{ margin: 0, cursor: 'pointer' }}>
-          Split 65% between Sylvia and Lillian independently
-        </label>
-      </div>
+        <span>Split 65% between Sylvia and Lillian independently</span>
+      </label>
 
       <div className="breakdown">
         <div className="breakdown-header">
