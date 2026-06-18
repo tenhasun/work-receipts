@@ -104,7 +104,9 @@ export async function appendToCSV(fileHandle, rowData) {
     Electricity: rowData.splits.electricity.toFixed(2),
     Laurence: rowData.splits.laurence.toFixed(2),
     Taxes: rowData.splits.taxes.toFixed(2),
-    'Sylvia & Lillian': rowData.splits.sylviaLillian.toFixed(2),
+    'Sylvia & Lillian': rowData.splitSylviaLillian ? '' : rowData.splits.sylviaLillian.toFixed(2),
+    Sylvia: rowData.splitSylviaLillian ? rowData.splits.sylvia.toFixed(2) : '',
+    Lillian: rowData.splitSylviaLillian ? rowData.splits.lillian.toFixed(2) : '',
   };
 
   data.push(newRow);

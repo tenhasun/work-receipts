@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save, PlusCircle, Trash2 } from 'lucide-react';
+import { Save, Download, PlusCircle, Trash2 } from 'lucide-react';
 
 export default function LineItemsForm({
   lineItems,
@@ -11,8 +11,15 @@ export default function LineItemsForm({
   parsedAmount,
   splits,
   handleSaveAndGenerate,
-  status
+  status,
+  splitSylviaLillian,
+  setSplitSylviaLillian
 }) {
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    const isDownload = e.nativeEvent.submitter?.name === 'download';
+    handleSaveAndGenerate(isDownload);
+  };
   const handleAddLineItem = () => setLineItems([...lineItems, { name: '', amount: '' }]);
   const handleRemoveLineItem = (index) => {
     if (lineItems.length > 1) {
@@ -26,7 +33,7 @@ export default function LineItemsForm({
   };
 
   return (
-    <form onSubmit={handleSaveAndGenerate} className="split-form">
+    <form onSubmit={handleFormSubmit} className="split-form">
       <div className="line-items-section">
         <div className="line-items-header">
           <h3>Line Items</h3>
@@ -93,6 +100,19 @@ export default function LineItemsForm({
         </div>
       </div>
 
+      <div className="form-group checkbox-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <input 
+          type="checkbox" 
+          id="splitSylviaLillian" 
+          checked={splitSylviaLillian}
+          onChange={(e) => setSplitSylviaLillian(e.target.checked)}
+          style={{ width: 'auto', marginBottom: 0 }}
+        />
+        <label htmlFor="splitSylviaLillian" style={{ margin: 0, cursor: 'pointer' }}>
+          Split 65% between Sylvia and Lillian independently
+        </label>
+      </div>
+
       <div className="breakdown">
         <div className="breakdown-header">
           <h3>Breakdown</h3>
@@ -111,17 +131,36 @@ export default function LineItemsForm({
             <span className="label">Laurence (15%)</span>
             <span className="value">${splits.laurence.toFixed(2)}</span>
           </div>
-          <div className="breakdown-item highlight">
-            <span className="label">Sylvia & Lillian (65%)</span>
-            <span className="value">${splits.sylviaLillian.toFixed(2)}</span>
-          </div>
+          {!splitSylviaLillian ? (
+            <div className="breakdown-item highlight">
+              <span className="label">Sylvia & Lillian (65%)</span>
+              <span className="value">${splits.sylviaLillian.toFixed(2)}</span>
+            </div>
+          ) : (
+            <>
+              <div className="breakdown-item highlight">
+                <span className="label">Sylvia (32.5%)</span>
+                <span className="value">${splits.sylvia.toFixed(2)}</span>
+              </div>
+              <div className="breakdown-item highlight">
+                <span className="label">Lillian (32.5%)</span>
+                <span className="value">${splits.lillian.toFixed(2)}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <button type="submit" className="primary-btn">
-        <Save size={18} />
-        Save & Generate PDF
-      </button>
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button type="submit" name="save" className="secondary-btn" style={{ flex: 1, padding: '1rem', fontSize: '1rem' }}>
+          <Save size={18} />
+          Save Only
+        </button>
+        <button type="submit" name="download" className="primary-btn" style={{ flex: 1 }}>
+          <Download size={18} />
+          Save & Download
+        </button>
+      </div>
       {status && <div className="status-message">{status}</div>}
     </form>
   );

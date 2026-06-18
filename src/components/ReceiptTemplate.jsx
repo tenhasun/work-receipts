@@ -64,10 +64,23 @@ export default function ReceiptTemplate({ activeData }) {
             <span className="receipt-label">Laurence (15%)</span>
             <span className="receipt-value">${activeData.splits.laurence.toFixed(2)}</span>
           </div>
-          <div className="receipt-row receipt-highlight">
-            <span className="receipt-label">Sylvia & Lillian (65%)</span>
-            <span className="receipt-value">${activeData.splits.sylviaLillian.toFixed(2)}</span>
-          </div>
+          {!activeData.splitSylviaLillian ? (
+            <div className="receipt-row receipt-highlight">
+              <span className="receipt-label">Sylvia & Lillian (65%)</span>
+              <span className="receipt-value">${activeData.splits.sylviaLillian.toFixed(2)}</span>
+            </div>
+          ) : (
+            <>
+              <div className="receipt-row receipt-highlight">
+                <span className="receipt-label">Sylvia (32.5%)</span>
+                <span className="receipt-value">${activeData.splits.sylvia.toFixed(2)}</span>
+              </div>
+              <div className="receipt-row receipt-highlight">
+                <span className="receipt-label">Lillian (32.5%)</span>
+                <span className="receipt-value">${activeData.splits.lillian.toFixed(2)}</span>
+              </div>
+            </>
+          )}
         </div>
         
         <div className="receipt-footer">

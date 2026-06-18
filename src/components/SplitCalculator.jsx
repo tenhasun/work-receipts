@@ -37,6 +37,7 @@ export default function SplitCalculator() {
   const [status, setStatus] = useState('');
   const [pdfData, setPdfData] = useState(null); 
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [splitSylviaLillian, setSplitSylviaLillian] = useState(false);
 
   // Derived Calculations
   const parsedAmount = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -45,6 +46,8 @@ export default function SplitCalculator() {
     laurence: parsedAmount * 0.15,
     taxes: parsedAmount * 0.15,
     sylviaLillian: parsedAmount * 0.65,
+    sylvia: parsedAmount * 0.325,
+    lillian: parsedAmount * 0.325,
   };
 
   const activeData = pdfData || {
@@ -52,7 +55,8 @@ export default function SplitCalculator() {
     date,
     note,
     splits,
-    lineItems
+    lineItems,
+    splitSylviaLillian
   };
 
   // Lifecycle
@@ -108,8 +112,7 @@ export default function SplitCalculator() {
   };
 
   // Handlers - Form & PDF Generation
-  const handleSaveAndGenerate = async (e) => {
-    e.preventDefault();
+  const handleSaveAndGenerate = async (downloadPdf = true) => {
     if (parsedAmount <= 0) {
       setStatus('Please enter valid line items.');
       return;
@@ -126,17 +129,24 @@ export default function SplitCalculator() {
       date,
       note,
       splits,
+      splitSylviaLillian
     };
 
     try {
-      await generatePDF('receipt-template', getFormattedFilename(date));
+      if (downloadPdf) {
+        await generatePDF('receipt-template', getFormattedFilename(date));
+      }
 
       if (fileHandle) {
         await appendToCSV(fileHandle, data);
-        setStatus('Saved to spreadsheet and PDF downloaded.');
+        setStatus(downloadPdf ? 'Saved to spreadsheet and PDF downloaded.' : 'Saved to spreadsheet successfully.');
         loadHistory();
       } else {
-        setStatus('PDF generated. (No spreadsheet selected to save to).');
+        if (downloadPdf) {
+          setStatus('PDF generated. (No spreadsheet selected to save to).');
+        } else {
+          setStatus('No spreadsheet selected to save to.');
+        }
       }
 
       setLineItems([{ name: '', amount: '' }]);
@@ -161,16 +171,21 @@ export default function SplitCalculator() {
         parsedItems.push({ name: 'Payment', amount: parseFloat(row['Total Amount']) });
       }
 
+      const isSplit = row.Sylvia && parseFloat(row.Sylvia) > 0;
+
       const data = {
         totalAmount: parseFloat(row['Total Amount']),
         date: row.Date,
         note: row.Note || '',
         lineItems: parsedItems,
+        splitSylviaLillian: isSplit,
         splits: {
-          electricity: parseFloat(row.Electricity || row.Utilities),
-          laurence: parseFloat(row.Laurence),
-          taxes: parseFloat(row.Taxes),
-          sylviaLillian: parseFloat(row['Sylvia & Lillian']),
+          electricity: parseFloat(row.Electricity || row.Utilities || 0),
+          laurence: parseFloat(row.Laurence || 0),
+          taxes: parseFloat(row.Taxes || 0),
+          sylviaLillian: isSplit ? 0 : parseFloat(row['Sylvia & Lillian'] || 0),
+          sylvia: isSplit ? parseFloat(row.Sylvia || 0) : 0,
+          lillian: isSplit ? parseFloat(row.Lillian || 0) : 0,
         }
       };
 
@@ -237,6 +252,8 @@ export default function SplitCalculator() {
         splits={splits}
         handleSaveAndGenerate={handleSaveAndGenerate}
         status={status}
+        splitSylviaLillian={splitSylviaLillian}
+        setSplitSylviaLillian={setSplitSylviaLillian}
       />
 
       <HistoryTable 
